@@ -1,0 +1,54 @@
+# ROS 2 / colcon 生成目录
+/build/
+/install/
+/log/
+
+# Python 缓存与打包产物
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# CMake 与本地编译产物
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+*.o
+*.obj
+*.a
+*.so
+*.so.*
+
+# ROS 运行与数据记录
+/ldlidar-driver.log
+rosbag2_*/
+*.db3
+*.mcap
+/core
+core.[0-9]*
+
+# 编辑器索引与临时文件
+.vscode/browse.vc.db*
+.vscode/ipch/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 本机环境配置
+.env
+.env.*
+!.env.example
