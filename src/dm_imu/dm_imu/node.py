@@ -1,9 +1,9 @@
 import math
 import threading
-from typing import Optional, Tuple
+from typing import Tuple
 
-import rclpy
 from geometry_msgs.msg import PoseStamped, Vector3Stamped
+import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
 
@@ -23,7 +23,9 @@ def euler_rpy_to_quat(roll: float, pitch: float, yaw: float) -> Tuple[float, flo
     )
 
 
-def normalize_quat(qx: float, qy: float, qz: float, qw: float) -> Tuple[float, float, float, float]:
+def normalize_quat(
+    qx: float, qy: float, qz: float, qw: float
+) -> Tuple[float, float, float, float]:
     values = (qx, qy, qz, qw)
     if not all(math.isfinite(value) for value in values):
         return 0.0, 0.0, 0.0, 1.0
@@ -46,6 +48,10 @@ class DmImuNode(Node):
         self.declare_parameter('publish_imu_data', False)
         self.declare_parameter('publish_rpy', True)
         self.declare_parameter('publish_pose', False)
+        # The manual's mapping ranges identify USB float values as ROS SI:
+        # acceleration in m/s^2 and angular velocity in rad/s.
+        self.declare_parameter('angular_velocity_scale', 1.0)
+        self.declare_parameter('linear_acceleration_scale', 1.0)
 
         self.port = str(self.get_parameter('port').value or '/dev/ttyACM0')
         self.frame_id = str(self.get_parameter('frame_id').value or 'imu_link')
@@ -54,6 +60,10 @@ class DmImuNode(Node):
         self.publish_imu_data = bool(self.get_parameter('publish_imu_data').value)
         self.publish_rpy = bool(self.get_parameter('publish_rpy').value)
         self.publish_pose = bool(self.get_parameter('publish_pose').value)
+        self.angular_velocity_scale = float(
+            self.get_parameter('angular_velocity_scale').value)
+        self.linear_acceleration_scale = float(
+            self.get_parameter('linear_acceleration_scale').value)
 
         try:
             self.baudrate = int(self.get_parameter('baudrate').value)
@@ -73,9 +83,18 @@ class DmImuNode(Node):
             from rclpy.qos import qos_profile_sensor_data
             qos = qos_profile_sensor_data
 
-        self.pub_imu = self.create_publisher(Imu, 'imu/data', qos) if self.publish_imu_data else None
-        self.pub_rpy = self.create_publisher(Vector3Stamped, 'imu/rpy', qos) if self.publish_rpy else None
-        self.pub_pose = self.create_publisher(PoseStamped, 'imu/pose', qos) if self.publish_pose else None
+        self.pub_imu = (
+            self.create_publisher(Imu, 'imu/data', qos)
+            if self.publish_imu_data else None
+        )
+        self.pub_rpy = (
+            self.create_publisher(Vector3Stamped, 'imu/rpy', qos)
+            if self.publish_rpy else None
+        )
+        self.pub_pose = (
+            self.create_publisher(PoseStamped, 'imu/pose', qos)
+            if self.publish_pose else None
+        )
 
         self.ser = DM_Serial(self.port, baudrate=self.baudrate)
         if not self.ser.start_reader():
@@ -104,7 +123,9 @@ class DmImuNode(Node):
         if newest_ts <= 0.0:
             self._no_frame_ticks += 1
             if self._no_frame_ticks % 200 == 0 and self.verbose:
-                self.get_logger().warning('No valid IMU frames yet; check streaming, baudrate and CRC')
+                self.get_logger().warning(
+                    'No valid IMU frames yet; check streaming, baudrate and CRC'
+                )
             return
         if newest_ts <= self._last_data_ts:
             return
@@ -155,7 +176,9 @@ class DmImuNode(Node):
                 imu.orientation_covariance[0] = -1.0
 
             if gyro is not None and len(gyro) == 3:
-                imu.angular_velocity.x, imu.angular_velocity.y, imu.angular_velocity.z = gyro
+                imu.angular_velocity.x = gyro[0] * self.angular_velocity_scale
+                imu.angular_velocity.y = gyro[1] * self.angular_velocity_scale
+                imu.angular_velocity.z = gyro[2] * self.angular_velocity_scale
                 imu.angular_velocity_covariance[0] = 0.02
                 imu.angular_velocity_covariance[4] = 0.02
                 imu.angular_velocity_covariance[8] = 0.02
@@ -163,7 +186,9 @@ class DmImuNode(Node):
                 imu.angular_velocity_covariance[0] = -1.0
 
             if accel is not None and len(accel) == 3:
-                imu.linear_acceleration.x, imu.linear_acceleration.y, imu.linear_acceleration.z = accel
+                imu.linear_acceleration.x = accel[0] * self.linear_acceleration_scale
+                imu.linear_acceleration.y = accel[1] * self.linear_acceleration_scale
+                imu.linear_acceleration.z = accel[2] * self.linear_acceleration_scale
                 imu.linear_acceleration_covariance[0] = 0.02
                 imu.linear_acceleration_covariance[4] = 0.02
                 imu.linear_acceleration_covariance[8] = 0.02
@@ -212,4 +237,5 @@ def main():
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()

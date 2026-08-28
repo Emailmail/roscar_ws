@@ -33,6 +33,7 @@ compile_commands.json
 rosbag2_*/
 *.db3
 *.mcap
+/runtime_maps/
 /core
 core.[0-9]*
 

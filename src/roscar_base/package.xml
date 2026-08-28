@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>roscar_base</name>
+  <version>0.1.0</version>
+  <description>C30D omnidirectional chassis driver and wheel odometry for ROSCar.</description>
+  <maintainer email="c1470759@outlook.com">Kielas</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>python3-serial</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <test_depend>ament_pytest</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export><build_type>ament_python</build_type></export>
+</package>

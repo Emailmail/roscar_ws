@@ -15,3 +15,9 @@ dm_imu:
     # 其他
     qos_reliable: true      # 或 true，按你需求
     verbose: false
+
+    # 手册附录的范围 ACCEL ±235.2、GYRO ±34.88 对应 m/s^2、rad/s，
+    # USB 原始 float 已符合 sensor_msgs/Imu 的 SI 单位，因此两个比例均保持 1.0。
+    # 参数仅用于兼容不同固件或诊断，不要再乘 9.80665 或 pi/180。
+    angular_velocity_scale: 1.0
+    linear_acceleration_scale: 1.0

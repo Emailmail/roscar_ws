@@ -1,0 +1,13 @@
+c30d_driver:
+  ros__parameters:
+    port: /dev/ttyACM0
+    baudrate: 115200
+    send_rate: 50.0
+    telemetry_rate: 20.0
+    cmd_timeout: 0.3
+    reconnect_interval: 2.0
+    max_linear_speed: 0.5
+    max_angular_speed: 1.5
+    odom_frame: odom
+    base_frame: base_footprint
+    publish_tf: true

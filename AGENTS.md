@@ -6,9 +6,15 @@
 
 - 当前环境为 Ubuntu 上的 ROS 2 Jazzy，Python 版本为 3.12。
 - 这是一个 ROS 2 工作区，不是单一软件包。源码位于 `src/`。
-- 当前包含两个硬件驱动包：
+- 当前包含以下分层软件包：
   - `src/dm_imu`：达妙科技 DM-IMU-L1 的 Python/pyserial 驱动，构建类型为 `ament_python`。
   - `src/ldlidar_stl_ros2`：LDROBOT LD06/LD19/STL27L 雷达驱动，构建类型为 `ament_cmake`。
+  - `src/roscar_base`：C30D 三轮全向底盘驱动和独立轮式里程计。
+  - `src/roscar_description`：机器人 Xacro 和全部传感器静态 TF。
+  - `src/roscar_slam`：Cartographer 建图、纯定位和地图保存。
+  - `src/roscar_navigation`：Nav2 全向导航配置。
+  - `src/roscar_bringup`：PC/RPi5 平台参数与组合启动。
+  - `src/roscar_maps`：实机确认后的地图；`src/roscar_exploration` 仅为预留接口。
 - 根目录当前不一定是 Git 仓库。执行 Git 操作前先用 `git rev-parse --show-toplevel` 确认，不要假定版本控制可用。
 
 ## 权威资料
@@ -82,15 +88,30 @@ colcon build --symlink-install --packages-select ldlidar_stl_ros2
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-colcon test --packages-select dm_imu
-colcon test --packages-select ldlidar_stl_ros2
+source /home/relog/roscar_ws/install/local_setup.bash
+colcon test --packages-select roscar_base roscar_bringup
+colcon test --packages-select dm_imu ldlidar_stl_ros2
 colcon test-result --verbose
 ```
+
+当前回归基线（2026-08-24）：
+
+- Jazzy 依赖安装完成后，工作区 9 个包可用 `--symlink-install` 完整构建。
+- `roscar_base` 有 9 个协议、里程计和安全测试；`roscar_bringup` 有 10 个平台配置与
+  架构约束测试，当前全部通过。
+- 当前 19 个 `*.launch.py` 均通过 `ros2 launch <包> <入口> --show-args`。
+- 三份 Cartographer Lua 配置均已实际启动并成功添加 trajectory；Nav2 已在合成地图和
+  合成 TF 下完成生命周期激活。这只证明软件编排可运行，不代表实机定位和导航通过。
+- `roscar_description` 已实际确认发布 `base_footprint -> base_link`、
+  `base_link -> imu_link` 和 `base_link -> base_laser`；雷达初始高度为 `0.18 m`。
 
 注意：
 
 - `dm_imu` 当前没有完整的自动化测试套件。协议解析改动必须增加或运行合成字节流测试，至少覆盖分包、粘包、噪声、坏 CRC、未知 RID 和所有有效 RID。
 - `ldlidar_stl_ros2` 是厂商旧代码，现有 ament lint 可能因原始格式、版权检测或网络不可用的 XML schema 检查而失败。必须区分编译失败、行为测试失败和既有 lint 失败，不要用一句“测试失败”混为一谈。
+- 当前已知 LiDAR 厂商代码失败项是 `copyright`、`cpplint`、`lint_cmake` 和
+  `uncrustify`；其编译、`cppcheck`、`flake8`、`pep257` 和 `xmllint` 已通过。不要仅为
+  消除这些既有格式告警而批量改写厂商 SDK。
 - 没有连接硬件时，可以验证构建、导入、协议解析和 launch 加载，但必须明确说明“未进行硬件实测”。
 - 不要为了让测试表面通过而禁用测试、吞掉异常或放宽协议校验。
 
@@ -116,7 +137,13 @@ USB 主动输出帧为小端序：
 - 协议四元数顺序是 `W, X, Y, Z`，ROS 消息顺序是 `X, Y, Z, W`。
 - 设备可能关闭任意一种输出，节点必须允许部分数据缺失，并按 ROS 约定设置相应 covariance 的首项为 `-1.0`。
 - 修改 CRC 行为前必须以手册附录、实际帧样本和合成测试共同确认。
-- `sensor_msgs/msg/Imu` 要求角速度使用 rad/s、线加速度使用 m/s^2。若设备 USB 输出单位尚未由手册或实测明确，不能擅自添加转换，也不能声称已经符合 SI；应在代码或交付说明中明确这一待确认项。
+- `sensor_msgs/msg/Imu` 要求角速度使用 rad/s、线加速度使用 m/s^2。V1.2 手册的 USB
+  章节说明设备直接发送校准后的原始小端 `float`；附录二给出的映射范围为加速度
+  `±235.2`、角速度 `±34.88`，分别对应 `m/s^2` 和 `rad/s`。因此当前 USB 数据已经符合
+  ROS SI 约定，`linear_acceleration_scale` 与 `angular_velocity_scale` 默认都必须为
+  `1.0`，不要再乘 `9.80665` 或 `pi/180`。手册参数页的加速度量程 `±6G` 与附录协议
+  映射上限并不相同；前者是设备指标，后者是传输映射范围，不能据此把 USB float 当成
+  `g`。
 - 设备输出四元数可用时优先使用设备四元数；缺失时才由欧拉角计算。
 - 串口读取运行在后台线程，缓存访问必须保持线程安全；关闭节点时必须停止线程并关闭串口。
 
@@ -152,7 +179,7 @@ ros2 launch dm_imu dm_imu.launch.py port:=/dev/ttyACM0
 
 - 默认 LD06/LD19 串口为 `/dev/ttyUSB0`，波特率为 230400；STL27L 默认为 921600。
 - 雷达节点发布 `/scan`，默认 frame 为 `base_laser`。
-- launch 文件还发布 `base_link -> base_laser` 静态变换。修改安装位置时应更新变换参数，不要只改 RViz。
+- 单独运行厂商 viewer 时可启用驱动 launch 的兼容 TF；整机启动时静态变换只能由 `roscar_description` 发布。
 - 修改扫描角度、方向、裁剪或距离范围时，先核对设备型号和 PDF 手册。
 - `ldlidar_driver` 是随 ROS 包带入的厂商 SDK。优先在 ROS 适配层修复问题；只有底层编译或协议问题确实位于 SDK 时才修改 SDK。
 
@@ -164,6 +191,28 @@ ros2 launch dm_imu dm_imu.launch.py port:=/dev/ttyACM0
 - 新增 launch、config 或 RViz 文件时，确保它们被 `setup.py` 或 `CMakeLists.txt` 安装。
 - 保持改动聚焦，不顺带重写厂商代码、生成目录或编辑器数据库。
 
+## 整机架构约束
+
+- TF 固定为 `map -> odom -> base_footprint -> base_link -> {imu_link, base_laser}`。
+- `roscar_base` 必须从 STM32 上报的机体速度独立积分位姿并发布 `/odom` 和
+  `odom -> base_footprint`，禁止从 Cartographer TF 读取位姿拼装 `/odom`。
+- 使用轮式里程计时 Cartographer 配置为 `published_frame = "odom"`、
+  `provide_odom_frame = false`、`use_odometry = true`，只发布 `map -> odom`。
+- Nav2 控制器必须支持 `vx/vy/wz` 全向运动；不要恢复旧工程的差速或
+  REEDS_SHEPP 配置。
+- `roscar_navigation` 包含 Jazzy 特有兼容约束：传给上游
+  `nav2_bringup/navigation_launch.py` 的 `use_composition` 必须是 Python 字面量字符串
+  `"False"`，不能写成 ROS 常用的小写 `"false"`。Jazzy 上游会将它放入
+  `PythonExpression` 求值；修改此处必须保留对应架构回归测试。
+- Nav2 与遥控速度先进入 `twist_mux`，最终 `/cmd_vel` 才交给底盘。底盘节点自身仍须
+  保留超时清零和退出前停车。
+- 自动探索当前未实现，禁止把空包描述为可用功能，也不要直接复制旧 `explore_lite`。
+  Jazzy 的 `launch.actions` 没有 `LogError`；当前探索入口通过 `OpaqueFunction` 调用
+  `launch.logging` 记录错误，再主动发送 `Shutdown`。入口应继续明确拒绝启动，而不是
+  静默退出或伪装成功。
+- 地图先保存到显式指定的可写目录；只有确认后的 `.yaml`、图像和 `.pbstream` 成套
+  文件才能放入 `src/roscar_maps/maps`。
+
 ## 交付要求
 
 完成修改后应说明：
@@ -174,3 +223,7 @@ ros2 launch dm_imu dm_imu.launch.py port:=/dev/ttyACM0
 - 若未测试硬件，剩余风险具体是什么，例如串口权限、输出 RID、频率、坐标轴方向或物理单位。
 
 不要把“能够编译”描述为“硬件驱动已经验证可用”。
+
+截至 2026-08-24，仍待实机验收的项目包括：IMU 轴向与安装变换、真实雷达扫描方向、
+底盘前进/横移/旋转与里程计方向、闭环建图、重定位、全向路径跟踪，以及拔掉底盘串口
+后的安全停车。后续若完成其中任一项，应记录测试条件和结果，并更新这份清单。

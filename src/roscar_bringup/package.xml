@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>roscar_bringup</name>
+  <version>0.1.0</version>
+  <description>PC and Raspberry Pi 5 system bringup for ROSCar.</description>
+  <maintainer email="c1470759@outlook.com">Kielas</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>dm_imu</exec_depend>
+  <exec_depend>ldlidar_stl_ros2</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>roscar_base</exec_depend>
+  <exec_depend>roscar_description</exec_depend>
+  <exec_depend>roscar_exploration</exec_depend>
+  <exec_depend>roscar_maps</exec_depend>
+  <exec_depend>roscar_navigation</exec_depend>
+  <exec_depend>roscar_slam</exec_depend>
+  <exec_depend>teleop_twist_keyboard</exec_depend>
+  <exec_depend>twist_mux</exec_depend>
+  <test_depend>ament_pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

@@ -1,0 +1,11 @@
+devices:
+  imu_port: /dev/ttyACM0
+  lidar_port: /dev/ttyUSB0
+  base_port: /dev/ttyACM1
+transforms:
+  laser: {x: 0.0, y: 0.0, z: 0.18, yaw: 0.0}
+  imu: {x: 0.0, y: 0.0, z: 0.0, yaw: 0.0}
+lidar:
+  product_name: LDLiDAR_LD06
+  baudrate: 230400
+  scan_direction_counterclockwise: true
