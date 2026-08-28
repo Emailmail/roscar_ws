@@ -46,6 +46,8 @@ class DmImuNode(Node):
         self.declare_parameter('verbose', True)
         self.declare_parameter('qos_reliable', True)
         self.declare_parameter('publish_imu_data', False)
+        self.declare_parameter('publish_accel', True)
+        self.declare_parameter('publish_gyro', True)
         self.declare_parameter('publish_rpy', True)
         self.declare_parameter('publish_pose', False)
         # The manual's mapping ranges identify USB float values as ROS SI:
@@ -58,6 +60,8 @@ class DmImuNode(Node):
         self.publish_rpy_in_degree = bool(self.get_parameter('publish_rpy_in_degree').value)
         self.verbose = bool(self.get_parameter('verbose').value)
         self.publish_imu_data = bool(self.get_parameter('publish_imu_data').value)
+        self.publish_accel = bool(self.get_parameter('publish_accel').value)
+        self.publish_gyro = bool(self.get_parameter('publish_gyro').value)
         self.publish_rpy = bool(self.get_parameter('publish_rpy').value)
         self.publish_pose = bool(self.get_parameter('publish_pose').value)
         self.angular_velocity_scale = float(
@@ -87,6 +91,14 @@ class DmImuNode(Node):
             self.create_publisher(Imu, 'imu/data', qos)
             if self.publish_imu_data else None
         )
+        self.pub_accel = (
+            self.create_publisher(Vector3Stamped, 'imu/accel', qos)
+            if self.publish_accel else None
+        )
+        self.pub_gyro = (
+            self.create_publisher(Vector3Stamped, 'imu/gyro', qos)
+            if self.publish_gyro else None
+        )
         self.pub_rpy = (
             self.create_publisher(Vector3Stamped, 'imu/rpy', qos)
             if self.publish_rpy else None
@@ -102,6 +114,8 @@ class DmImuNode(Node):
         self.get_logger().info(f'Opened serial {self.port} @ {self.baudrate}')
 
         self._last_data_ts = 0.0
+        self._last_accel_ts = 0.0
+        self._last_gyro_ts = 0.0
         self._last_rpy_ts = 0.0
         self._closing = threading.Event()
         self._no_frame_ticks = 0
@@ -148,6 +162,36 @@ class DmImuNode(Node):
             qx, qy, qz, qw = 0.0, 0.0, 0.0, 1.0
 
         stamp = self.get_clock().now().to_msg()
+
+        if (
+            self.pub_accel is not None
+            and accel is not None
+            and len(accel) == 3
+            and accel_ts > self._last_accel_ts
+        ):
+            accel_msg = Vector3Stamped()
+            accel_msg.header.stamp = stamp
+            accel_msg.header.frame_id = self.frame_id
+            accel_msg.vector.x = accel[0] * self.linear_acceleration_scale
+            accel_msg.vector.y = accel[1] * self.linear_acceleration_scale
+            accel_msg.vector.z = accel[2] * self.linear_acceleration_scale
+            self.pub_accel.publish(accel_msg)
+            self._last_accel_ts = accel_ts
+
+        if (
+            self.pub_gyro is not None
+            and gyro is not None
+            and len(gyro) == 3
+            and gyro_ts > self._last_gyro_ts
+        ):
+            gyro_msg = Vector3Stamped()
+            gyro_msg.header.stamp = stamp
+            gyro_msg.header.frame_id = self.frame_id
+            gyro_msg.vector.x = gyro[0] * self.angular_velocity_scale
+            gyro_msg.vector.y = gyro[1] * self.angular_velocity_scale
+            gyro_msg.vector.z = gyro[2] * self.angular_velocity_scale
+            self.pub_gyro.publish(gyro_msg)
+            self._last_gyro_ts = gyro_ts
 
         if self.pub_rpy is not None and r_deg is not None and rpy_ts > self._last_rpy_ts:
             rpy_msg = Vector3Stamped()

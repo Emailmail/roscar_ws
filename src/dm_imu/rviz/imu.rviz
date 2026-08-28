@@ -87,7 +87,7 @@ Visualization Manager:
   Enabled: true
   Global Options:
     Background Color: 170; 170; 255
-    Fixed Frame: imu_link
+    Fixed Frame: base_link
     Frame Rate: 120
   Name: root
   Tools:
