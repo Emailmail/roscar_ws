@@ -42,7 +42,7 @@ sudo apt install \
   ros-jazzy-xacro \
   python3-serial python3-yaml
 
-cd /home/relog/roscar_ws
+cd ~/roscar_ws
 source /opt/ros/jazzy/setup.bash
 # 首次使用 rosdep 的系统需先执行：sudo rosdep init && rosdep update
 rosdep install --from-paths src --ignore-src -r -y
@@ -74,9 +74,9 @@ ros2 launch roscar_bringup mapping.launch.py profile:=rpi5
 保存地图时必须指定可写目录：
 
 ```bash
-mkdir -p /home/relog/roscar_ws/runtime_maps
+mkdir -p ~/roscar_ws/runtime_maps
 ros2 launch roscar_slam save_map.launch.py \
-  map_dir:=/home/relog/roscar_ws/runtime_maps map_name:=my_map
+  map_dir:=~/roscar_ws/runtime_maps map_name:=my_map
 ```
 
 确认地图后，把同一次建图产生的 `.yaml`、地图图像和 `.pbstream` 一起复制到

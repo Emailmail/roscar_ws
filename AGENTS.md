@@ -1,10 +1,10 @@
 # AGENTS.md
 
-本文档适用于整个 `/home/relog/roscar_ws` 工作区，供后续自动化代理和开发者使用。
+本文档适用于整个 `/home/yilong/roscar_ws` 工作区，供后续自动化代理和开发者使用。快速入口见 `CLAUDE.md`。
 
 ## 工程定位
 
-- 当前环境为 Ubuntu 上的 ROS 2 Jazzy，Python 版本为 3.12。
+- 当前环境为树莓派 5（本机，RPi OS）上的 ROS 2 Jazzy，Python 版本为 3.12；同一工作区也可在 PC 上使用（`profile:=pc`）。
 - 这是一个 ROS 2 工作区，不是单一软件包。源码位于 `src/`。
 - 当前包含以下分层软件包：
   - `src/dm_imu`：达妙科技 DM-IMU-L1 的 Python/pyserial 驱动，构建类型为 `ament_python`。
@@ -15,15 +15,15 @@
   - `src/roscar_navigation`：Nav2 全向导航配置。
   - `src/roscar_bringup`：PC/RPi5 平台参数与组合启动。
   - `src/roscar_maps`：实机确认后的地图；`src/roscar_exploration` 仅为预留接口。
-- 根目录当前不一定是 Git 仓库。执行 Git 操作前先用 `git rev-parse --show-toplevel` 确认，不要假定版本控制可用。
+- 根目录是 Git 仓库（main 分支）；`build/`、`install/`、`log/` 等生成目录已被 `.gitignore` 忽略。
 
 ## 权威资料
 
 - DM-IMU 通信协议以 `doc/达妙科技DM-IMU-L1六轴IMU模块使用说明书V1.2.pdf` 为准。
 - LD LiDAR 通信和设备参数以 `doc/LD06（19）激光雷达开发手册_v2.5.pdf` 为准。
 - 若源码、旧工程和 PDF 冲突，先按 PDF 核对协议，再结合实际设备输出判断；不要直接照搬旧实现。
-- `/home/relog/roscar_old/roscar/src/dm_imu` 是树莓派 5 上经过多轮修改后勉强运行的历史版本，只能用于理解背景或对照功能，不能作为当前实现的权威来源。
-- 历史工程使用 `/dev/ttyAMA4`，因为它运行在树莓派 5；当前 PC 通过 USB 使用 `/dev/ttyACM0`。不要为了与旧工程一致而修改当前默认串口。
+- 旧开发机上曾存在 `/home/relog/roscar_old/roscar/src/dm_imu`（树莓派 5 上勉强运行的历史版本），仅供理解背景或对照功能；该路径在当前机器上不存在，不能作为当前实现的权威来源。
+- 串口按平台由 profile 决定：PC 走 USB（IMU `/dev/ttyACM0`）；树莓派 5 走排针 UART（IMU `/dev/ttyAMA4`，即 uart4、GPIO12/13、物理 32/33 脚）。不要把某一平台的设备名硬编码进通用默认值，也不要为了与旧工程一致而修改 profile。
 
 ## 目录约束
 
@@ -44,7 +44,7 @@ source /opt/ros/jazzy/setup.bash
 构建后再加载工作区：
 
 ```bash
-source /home/relog/roscar_ws/install/local_setup.bash
+source /home/yilong/roscar_ws/install/local_setup.bash
 ```
 
 Python 串口依赖应优先由系统包提供：
@@ -60,7 +60,7 @@ sudo apt install python3-serial
 完整构建：
 
 ```bash
-cd /home/relog/roscar_ws
+cd /home/yilong/roscar_ws
 source /opt/ros/jazzy/setup.bash
 colcon build --symlink-install
 ```
@@ -88,7 +88,7 @@ colcon build --symlink-install --packages-select ldlidar_stl_ros2
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-source /home/relog/roscar_ws/install/local_setup.bash
+source /home/yilong/roscar_ws/install/local_setup.bash
 colcon test --packages-select roscar_base roscar_bringup
 colcon test --packages-select dm_imu ldlidar_stl_ros2
 colcon test-result --verbose
@@ -105,9 +105,16 @@ colcon test-result --verbose
 - `roscar_description` 已实际确认发布 `base_footprint -> base_link`、
   `base_link -> imu_link` 和 `base_link -> base_laser`；雷达初始高度为 `0.18 m`。
 
+实机进展（2026-08-29，树莓派 5）：
+
+- LD06 经排针 uart0（`/dev/ttyAMA0`，GPIO14/15，物理 8/10 脚，230400 波特率）实测
+  正常：`/scan` 稳定 10 Hz、完整 360°、含有效距离值。
+- uart4（`/dev/ttyAMA4`，GPIO12/13，物理 32/33 脚）已由 `dtoverlay=uart4-pi5` 启用，
+  内核控制台未占用串口；IMU 数据链路尚未实测。
+
 注意：
 
-- `dm_imu` 当前没有完整的自动化测试套件。协议解析改动必须增加或运行合成字节流测试，至少覆盖分包、粘包、噪声、坏 CRC、未知 RID 和所有有效 RID。
+- `dm_imu` 目前有节点发布与 launch 转发测试（`test/test_node.py`、`test/test_launch.py`），但 `dm_serial` 协议解析仍无自动化测试。协议解析改动必须增加或运行合成字节流测试，至少覆盖分包、粘包、噪声、坏 CRC、未知 RID 和所有有效 RID。
 - `ldlidar_stl_ros2` 是厂商旧代码，现有 ament lint 可能因原始格式、版权检测或网络不可用的 XML schema 检查而失败。必须区分编译失败、行为测试失败和既有 lint 失败，不要用一句“测试失败”混为一谈。
 - 当前已知 LiDAR 厂商代码失败项是 `copyright`、`cpplint`、`lint_cmake` 和
   `uncrustify`；其编译、`cppcheck`、`flake8`、`pep257` 和 `xmllint` 已通过。不要仅为
@@ -157,12 +164,13 @@ USB 主动输出帧为小端序：
 
 ## DM-IMU 运行约定
 
-PC 上默认启动：
+PC（USB）与树莓派 5（排针 uart4）分别启动：
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-source /home/relog/roscar_ws/install/local_setup.bash
-ros2 launch dm_imu dm_imu.launch.py port:=/dev/ttyACM0
+source /home/yilong/roscar_ws/install/local_setup.bash
+ros2 launch dm_imu dm_imu.launch.py port:=/dev/ttyACM0   # PC
+ros2 launch dm_imu dm_imu.launch.py port:=/dev/ttyAMA4   # 树莓派 5
 ```
 
 如果 `/dev/serial/by-id/` 存在稳定链接，人工运行时优先传入该链接。不要把某一台设备的完整 by-id 字符串硬编码进通用配置。
