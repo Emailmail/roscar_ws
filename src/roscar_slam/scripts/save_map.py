@@ -21,7 +21,10 @@ def main():
         f'{{filename: "{base}.pbstream"}}',
     ], check=True)
     subprocess.run(
-        ['ros2', 'run', 'nav2_map_server', 'map_saver_cli', '-f', str(base)],
+        ['ros2', 'run', 'nav2_map_server', 'map_saver_cli', '-f', str(base),
+         # The default 2s subscription timeout races DDS discovery when the
+         # machine is busy (e.g. cartographer under load) and aborts the save.
+         '--ros-args', '-p', 'save_map_timeout:=15.0'],
         check=True,
     )
     print(f'Saved {base}.pbstream, {base}.yaml and map image')

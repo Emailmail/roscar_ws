@@ -37,6 +37,7 @@ def test_accel_topic_only_publishes_new_acceleration_frames():
         _last_accel_ts=0.0,
         _last_gyro_ts=0.0,
         _last_rpy_ts=0.0,
+        _last_stamp=None,
         _pub_count=0,
         linear_acceleration_scale=2.0,
         frame_id='imu_link',
@@ -81,6 +82,7 @@ def test_gyro_topic_only_publishes_new_angular_velocity_frames():
         _last_accel_ts=0.0,
         _last_gyro_ts=0.0,
         _last_rpy_ts=0.0,
+        _last_stamp=None,
         _pub_count=0,
         angular_velocity_scale=2.0,
         frame_id='imu_link',
@@ -109,3 +111,47 @@ def test_gyro_topic_only_publishes_new_angular_velocity_frames():
     serial.gyro_ts = 3.0
     DmImuNode._on_timer_publish(node)
     assert len(publisher.messages) == 2
+
+
+def test_stamps_are_clamped_monotonic_when_clock_steps_backwards():
+    publisher = FakePublisher()
+    serial = FakeSerial()
+    clock = SimpleNamespace(now=lambda: Time(seconds=1000))
+    node = SimpleNamespace(
+        ser=serial,
+        verbose=False,
+        _no_frame_ticks=0,
+        _last_data_ts=0.0,
+        _last_accel_ts=0.0,
+        _last_gyro_ts=0.0,
+        _last_rpy_ts=0.0,
+        _last_stamp=None,
+        _pub_count=0,
+        linear_acceleration_scale=1.0,
+        frame_id='imu_link',
+        pub_accel=publisher,
+        pub_gyro=None,
+        pub_rpy=None,
+        pub_imu=None,
+        pub_pose=None,
+        get_clock=lambda: clock,
+    )
+
+    DmImuNode._on_timer_publish(node)
+    assert publisher.messages[0].header.stamp.sec == 1000
+    assert publisher.messages[0].header.stamp.nanosec == 0
+
+    # NTP steps the wall clock backwards between two frames.
+    clock.now = lambda: Time(seconds=999, nanoseconds=999_999_000)
+    serial.accel = (4.0, 5.0, 6.0)
+    serial.accel_ts = 2.0
+    DmImuNode._on_timer_publish(node)
+    second = publisher.messages[1].header.stamp
+    assert (second.sec, second.nanosec) == (1000, 1)
+
+    clock.now = lambda: Time(seconds=999, nanoseconds=999_999_500)
+    serial.accel = (7.0, 8.0, 9.0)
+    serial.accel_ts = 3.0
+    DmImuNode._on_timer_publish(node)
+    third = publisher.messages[2].header.stamp
+    assert (third.sec, third.nanosec) == (1000, 2)

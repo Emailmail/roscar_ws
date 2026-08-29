@@ -114,6 +114,7 @@ class DmImuNode(Node):
         self.get_logger().info(f'Opened serial {self.port} @ {self.baudrate}')
 
         self._last_data_ts = 0.0
+        self._last_stamp = None
         self._last_accel_ts = 0.0
         self._last_gyro_ts = 0.0
         self._last_rpy_ts = 0.0
@@ -162,6 +163,17 @@ class DmImuNode(Node):
             qx, qy, qz, qw = 0.0, 0.0, 0.0, 1.0
 
         stamp = self.get_clock().now().to_msg()
+        # NTP corrections can step the wall clock backwards on RTC-less
+        # boards; Cartographer aborts on non-monotonic sensor stamps, so
+        # clamp every published stamp to be strictly increasing.
+        if self._last_stamp is not None and (
+                stamp.sec, stamp.nanosec) <= self._last_stamp:
+            sec, nanosec = self._last_stamp
+            nanosec += 1
+            if nanosec >= 1_000_000_000:
+                sec, nanosec = sec + 1, 0
+            stamp.sec, stamp.nanosec = sec, nanosec
+        self._last_stamp = (stamp.sec, stamp.nanosec)
 
         if (
             self.pub_accel is not None

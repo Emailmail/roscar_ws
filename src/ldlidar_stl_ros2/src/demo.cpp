@@ -170,7 +170,13 @@ void  ToLaserscanMessagePublish(ldlidar::Points2D& src,  double lidar_spin_freq,
   // Calculate the number of scanning points
   if (lidar_spin_freq > 0) {
     sensor_msgs::msg::LaserScan output;
-    output.header.stamp = start_scan_time;
+    // ROS convention: LaserScan stamp is the time of the FIRST ray. The
+    // sweep is only complete at start_scan_time (one full rotation later),
+    // so shift the stamp back to the sweep start; otherwise per-point
+    // subdivision times land one scan period in the future and violate
+    // Cartographer's IMU time ordering.
+    output.header.stamp =
+      start_scan_time - rclcpp::Duration::from_seconds(scan_time);
     output.header.frame_id = setting.frame_id;
     output.angle_min = angle_min;
     output.angle_max = angle_max;

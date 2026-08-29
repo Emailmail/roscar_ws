@@ -205,6 +205,10 @@ class DM_Serial:
                 self.baudrate,
                 timeout=self.timeout,
                 write_timeout=0,
+                # TIOCEXCL: a stale duplicate of this node must fail to open
+                # the port instead of silently interleaving /imu/data stamps
+                # from two processes, which breaks Cartographer ordering.
+                exclusive=True,
             )
             try:
                 self.ser.reset_input_buffer()
