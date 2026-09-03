@@ -1,3 +1,5 @@
+import os
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
@@ -14,18 +16,27 @@ def generate_launch_description():
     map_yaml = PythonExpression(["'", map_dir, '/', map_name, ".yaml'"])
     hardware_args = {
         name: LaunchConfiguration(name)
-        for name in ('profile', 'use_sim_time', 'imu_port', 'lidar_port', 'base_port')
+        for name in ('profile', 'use_base', 'use_sim_time',
+                     'imu_port', 'lidar_port', 'base_port')
     }
-    hardware_args['use_base'] = 'true'
     hardware = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(PathJoinSubstitution([
             FindPackageShare('roscar_bringup'), 'launch', 'hardware.launch.py'
         ])), launch_arguments=hardware_args.items())
+    # Without the chassis no one publishes odom -> base_footprint, so
+    # Cartographer takes over that transform (cartographer_localization_no_odom.lua),
+    # exactly like sensor-only mapping does with cartographer_2d_no_odom.lua.
+    localization_config = PythonExpression([
+        "'cartographer_localization.lua' if '",
+        LaunchConfiguration('use_base'), "'.lower() == 'true' else ",
+        "'cartographer_localization_no_odom.lua'",
+    ])
     localization = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(PathJoinSubstitution([
             FindPackageShare('roscar_slam'), 'launch', 'localization.launch.py'
         ])), launch_arguments={
             'use_sim_time': use_sim_time, 'map_dir': map_dir, 'map_name': map_name,
+            'configuration_basename': localization_config,
             'initial_x': LaunchConfiguration('initial_x'),
             'initial_y': LaunchConfiguration('initial_y'),
             'initial_yaw_deg': LaunchConfiguration('initial_yaw_deg'),
@@ -63,12 +74,12 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('profile', default_value='pc'),
         DeclareLaunchArgument('use_sim_time', default_value='false'),
+        DeclareLaunchArgument('use_base', default_value='true'),
         DeclareLaunchArgument('imu_port', default_value=''),
         DeclareLaunchArgument('lidar_port', default_value=''),
         DeclareLaunchArgument('base_port', default_value=''),
-        DeclareLaunchArgument('map_dir', default_value=PathJoinSubstitution([
-            FindPackageShare('roscar_maps'), 'maps'
-        ])),
+        DeclareLaunchArgument(
+            'map_dir', default_value=os.path.expanduser('~/roscar_ws/roscar_maps/maps')),
         DeclareLaunchArgument('map_name', default_value='my_map'),
         DeclareLaunchArgument('initial_x', default_value='0.0'),
         DeclareLaunchArgument('initial_y', default_value='0.0'),

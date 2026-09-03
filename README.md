@@ -68,25 +68,24 @@ ros2 launch roscar_bringup mapping.launch.py \
 树莓派整车建图：
 
 ```bash
-ros2 launch roscar_bringup mapping.launch.py profile:=rpi5
+ros2 launch roscar_bringup mapping.launch.py profile:=rpi5 use_base:=false
 ```
 
-保存地图时必须指定可写目录：
+地图统一保存在 `~/roscar_ws/roscar_maps/maps/`，navigation 默认读取该目录，
+保存后即可直接启动，无需复制或重建：
 
 ```bash
-mkdir -p ~/roscar_ws/runtime_maps
+mkdir -p ~/roscar_ws/roscar_maps/maps
 ros2 launch roscar_slam save_map.launch.py \
-  map_dir:=~/roscar_ws/runtime_maps map_name:=my_map
+  map_dir:=~/roscar_ws/roscar_maps/maps/ map_name:=my_map
 ```
 
-确认地图后，把同一次建图产生的 `.yaml`、地图图像和 `.pbstream` 一起复制到
-`src/roscar_maps/maps/`。随后可启动定位和导航：
+定位与导航（无底盘加 `use_base:=false`：Cartographer 接管
+`odom -> base_footprint`，Nav2 可完整启动，但 `/cmd_vel` 无底盘执行）：
 
 ```bash
-colcon build --symlink-install --packages-select roscar_maps
-source install/local_setup.bash
 ros2 launch roscar_bringup navigation.launch.py \
-  profile:=rpi5 map_name:=my_map use_rviz:=true
+  profile:=rpi5 map_name:=my_map use_base:=false use_rviz:=false
 ```
 
 参数 `imu_port`、`lidar_port` 和 `base_port` 均可覆盖平台配置。PC 默认 IMU 为

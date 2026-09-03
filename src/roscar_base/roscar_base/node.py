@@ -27,6 +27,7 @@ class C30dDriver(Node):
             'cmd_timeout': 0.3, 'reconnect_interval': 2.0,
             'max_linear_speed': 0.5, 'max_angular_speed': 1.5,
             'odom_frame': 'odom', 'base_frame': 'base_footprint',
+            'cmd_vel_topic': 'cmd_vel',
             'publish_tf': True,
         }
         for name, value in defaults.items():
@@ -42,6 +43,7 @@ class C30dDriver(Node):
         self._max_angular = float(self.get_parameter('max_angular_speed').value)
         self._odom_frame = str(self.get_parameter('odom_frame').value)
         self._base_frame = str(self.get_parameter('base_frame').value)
+        self._cmd_vel_topic = str(self.get_parameter('cmd_vel_topic').value)
         self._publish_tf = bool(self.get_parameter('publish_tf').value)
 
         self._serial = None
@@ -54,12 +56,14 @@ class C30dDriver(Node):
         self._last_cmd_time: Optional[float] = None
         self._lock = threading.Lock()
 
-        self.create_subscription(Twist, 'cmd_vel', self._on_cmd, 10)
+        self.create_subscription(Twist, self._cmd_vel_topic, self._on_cmd, 10)
         self._odom_pub = self.create_publisher(Odometry, 'odom', 20)
         self._tf = TransformBroadcaster(self)
         rate = max(1.0, float(self.get_parameter('send_rate').value))
         self.create_timer(1.0 / rate, self._tick)
-        self.get_logger().info(f'C30D driver configured for {self._port} @ {self._baudrate}')
+        self.get_logger().info(
+            f'C30D driver configured for {self._port} @ {self._baudrate}, '
+            f'subscribing {self._cmd_vel_topic}')
 
     def _on_cmd(self, msg: Twist) -> None:
         with self._lock:

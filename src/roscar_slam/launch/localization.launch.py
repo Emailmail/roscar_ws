@@ -16,7 +16,8 @@ def _cartographer(context):
     arguments = [
         '-configuration_directory',
         PathJoinSubstitution([FindPackageShare('roscar_slam'), 'config']).perform(context),
-        '-configuration_basename', 'cartographer_localization.lua',
+        '-configuration_basename',
+        LaunchConfiguration('configuration_basename').perform(context),
         '-load_state_filename', f'{map_dir}/{map_name}.pbstream',
     ]
     if x != 0.0 or y != 0.0 or yaw != 0.0:
@@ -40,6 +41,8 @@ def generate_launch_description():
         DeclareLaunchArgument('use_sim_time', default_value='false'),
         DeclareLaunchArgument('map_dir'),
         DeclareLaunchArgument('map_name', default_value='my_map'),
+        DeclareLaunchArgument(
+            'configuration_basename', default_value='cartographer_localization.lua'),
         DeclareLaunchArgument('initial_x', default_value='0.0'),
         DeclareLaunchArgument('initial_y', default_value='0.0'),
         DeclareLaunchArgument('initial_yaw_deg', default_value='0.0'),

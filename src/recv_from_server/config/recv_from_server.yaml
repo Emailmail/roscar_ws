@@ -1,0 +1,7 @@
+recv_from_server:
+  ros__parameters:
+    server_uri: "ws://8.134.118.29:8771"
+    remote_topic: "/cmdvel_remote"
+    cmd_vel_topic: "/cmd_vel"
+    reconnect_delay: 2.0
+    command_timeout: 0.5

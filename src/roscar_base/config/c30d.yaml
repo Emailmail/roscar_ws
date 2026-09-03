@@ -10,4 +10,5 @@ c30d_driver:
     max_angular_speed: 1.5
     odom_frame: odom
     base_frame: base_footprint
+    cmd_vel_topic: cmd_vel
     publish_tf: true
