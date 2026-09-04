@@ -15,13 +15,17 @@ def _nodes(context):
     transforms = profile.get('transforms', {})
     laser_tf = transforms.get('laser', {})
     imu_tf = transforms.get('imu', {})
+    camera_tf = transforms.get('camera', {})
     lidar = profile.get('lidar', {})
+    camera = profile.get('camera', {})
     imu_port = override(
         devices['imu_port'], LaunchConfiguration('imu_port').perform(context))
     lidar_port = override(
         devices['lidar_port'], LaunchConfiguration('lidar_port').perform(context))
     base_port = override(
         devices['base_port'], LaunchConfiguration('base_port').perform(context))
+    camera_serial = override(
+        camera.get('serial', ''), LaunchConfiguration('camera_serial').perform(context))
 
     description = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(PathJoinSubstitution([
@@ -37,6 +41,10 @@ def _nodes(context):
             'imu_y': str(imu_tf.get('y', 0.0)),
             'imu_z': str(imu_tf.get('z', 0.0)),
             'imu_yaw': str(imu_tf.get('yaw', 0.0)),
+            'camera_x': str(camera_tf.get('x', 0.0)),
+            'camera_y': str(camera_tf.get('y', 0.0)),
+            'camera_z': str(camera_tf.get('z', 0.20)),
+            'camera_yaw': str(camera_tf.get('yaw', 0.0)),
         }.items(),
     )
     imu = Node(
@@ -74,7 +82,25 @@ def _nodes(context):
         ])],
         remappings=[('cmd_vel_out', '/cmd_vel')],
     )
-    return [description, imu, laser, base, mux]
+    camera_node = Node(
+        package='realsense_r200_ros2', executable='r200_node', name='r200_node',
+        output='screen',
+        condition=IfCondition(LaunchConfiguration('use_camera')),
+        parameters=[
+            PathJoinSubstitution([
+                FindPackageShare('realsense_r200_ros2'), 'config', 'r200.yaml'
+            ]),
+            {
+                'serial': camera_serial,
+                'use_presets': bool(camera.get('use_presets', True)),
+                'depth_enabled': bool(camera.get('depth_enabled', True)),
+                'infrared_enabled': bool(camera.get('infrared_enabled', True)),
+                'infrared2_enabled': bool(camera.get('infrared2_enabled', False)),
+                'publish_pointcloud': bool(camera.get('publish_pointcloud', False)),
+            },
+        ],
+    )
+    return [description, imu, laser, base, mux, camera_node]
 
 
 def generate_launch_description():
@@ -83,11 +109,14 @@ def generate_launch_description():
             'profile', default_value='pc', description='pc, rpi5, or YAML path'),
         DeclareLaunchArgument('use_sim_time', default_value='false'),
         DeclareLaunchArgument('use_base', default_value='true'),
+        DeclareLaunchArgument('use_camera', default_value='false'),
         DeclareLaunchArgument(
             'imu_port', default_value='', description='Empty uses profile value'),
         DeclareLaunchArgument(
             'lidar_port', default_value='', description='Empty uses profile value'),
         DeclareLaunchArgument(
             'base_port', default_value='', description='Empty uses profile value'),
+        DeclareLaunchArgument(
+            'camera_serial', default_value='', description='Empty uses profile value'),
         OpaqueFunction(function=_nodes),
     ])

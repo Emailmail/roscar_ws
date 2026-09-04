@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>realsense_r200_ros2</name>
+  <version>0.1.0</version>
+  <description>ROS 2 Jazzy driver for the R200-only librealsense-r200 SDK.</description>
+  <maintainer email="c1470759@outlook.com">Kielas</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <!-- librealsense-r200 SDK(~/src/r200_ubuntu24.04)手工构建安装到 /usr/local,
+       不是 rosdep key,故不在此声明;安装步骤见工作区 README.md。 -->
+  <depend>rclcpp</depend>
+  <depend>builtin_interfaces</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

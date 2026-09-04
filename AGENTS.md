@@ -9,12 +9,14 @@
 - 当前包含以下分层软件包：
   - `src/dm_imu`：达妙科技 DM-IMU-L1 的 Python/pyserial 驱动，构建类型为 `ament_python`。
   - `src/ldlidar_stl_ros2`：LDROBOT LD06/LD19/STL27L 雷达驱动，构建类型为 `ament_cmake`。
+  - `src/realsense_r200_ros2`：Intel RealSense R200 相机驱动，构建类型为 `ament_cmake`，依赖系统级手工安装的 librealsense-r200 SDK。
+  - `src/recv_from_server`：接收 WebSocket 中继下发的远程 `geometry_msgs/Twist` 遥控指令。
   - `src/roscar_base`：C30D 三轮全向底盘驱动和独立轮式里程计。
   - `src/roscar_description`：机器人 Xacro 和全部传感器静态 TF。
   - `src/roscar_slam`：Cartographer 建图、纯定位和地图保存。
   - `src/roscar_navigation`：Nav2 全向导航配置。
   - `src/roscar_bringup`：PC/RPi5 平台参数与组合启动。
-  - `src/roscar_maps`：实机确认后的地图；`src/roscar_exploration` 仅为预留接口。
+  - `src/roscar_maps`：实机确认后的地图（2026-08-29 已移至工作区根目录 `roscar_maps/`）；`src/roscar_exploration` 仅为预留接口。
 - 根目录是 Git 仓库（main 分支）；`build/`、`install/`、`log/` 等生成目录已被 `.gitignore` 忽略。
 
 ## 权威资料
@@ -94,12 +96,14 @@ colcon test --packages-select dm_imu ldlidar_stl_ros2
 colcon test-result --verbose
 ```
 
-当前回归基线（2026-08-24）：
+当前回归基线（2026-09-04）：
 
-- Jazzy 依赖安装完成后，工作区 9 个包可用 `--symlink-install` 完整构建。
-- `roscar_base` 有 9 个协议、里程计和安全测试；`roscar_bringup` 有 10 个平台配置与
-  架构约束测试，当前全部通过。
-- 当前 19 个 `*.launch.py` 均通过 `ros2 launch <包> <入口> --show-args`。
+- Jazzy 依赖与 librealsense-r200 SDK 安装完成后，工作区 10 个包（含
+  `recv_from_server`、`realsense_r200_ros2`）可用 `--symlink-install` 完整构建。
+- `roscar_base` 有 9 个协议、里程计和安全测试；`roscar_bringup` 有 12 个平台配置与
+  架构约束测试；`realsense_r200_ros2` 有 4 个 launch/配置断言测试。当前全部通过；
+  相机链路已于 2026-09-04 实机验证（见下）。
+- 当前 22 个 `*.launch.py` 均通过 `ros2 launch <包> <入口> --show-args`。
 - 三份 Cartographer Lua 配置均已实际启动并成功添加 trajectory；Nav2 已在合成地图和
   合成 TF 下完成生命周期激活。这只证明软件编排可运行，不代表实机定位和导航通过。
 - `roscar_description` 已实际确认发布 `base_footprint -> base_link`、
@@ -111,6 +115,17 @@ colcon test-result --verbose
   正常：`/scan` 稳定 10 Hz、完整 360°、含有效距离值。
 - uart4（`/dev/ttyAMA4`，GPIO12/13，物理 32/33 脚）已由 `dtoverlay=uart4-pi5` 启用，
   内核控制台未占用串口；IMU 数据链路尚未实测。
+
+实机进展（2026-09-04，树莓派 5）：
+
+- R200 相机经 USB 3.0（实测 5000M）验证正常：序列号 2211006613（已写入
+  `rpi5.yaml`），`use_presets: true` 的 best_quality 预设实测三路 60 Hz（彩色
+  rgb8 640×480、深度 16UC1、红外 mono8），camera_info 为相机 SPI 标定值，
+  `r200_link -> r200_*_optical_frame` 外参由节点正常发布；整机
+  `hardware.launch.py use_camera:=true` 下 profile 的 camera 段覆盖生效
+  （红外 2 与点云按配置关闭）。相机安装位姿仍为占位值。
+- udev 权限依赖 video 组；`usermod` 后未重新登录的存量会话可用
+  `sg video -c "bash -c '...'"` 过渡（sg 会清环境变量，须在其内部重新 source）。
 
 注意：
 
@@ -191,6 +206,26 @@ ros2 launch dm_imu dm_imu.launch.py port:=/dev/ttyAMA4   # 树莓派 5
 - 修改扫描角度、方向、裁剪或距离范围时，先核对设备型号和 PDF 手册。
 - `ldlidar_driver` 是随 ROS 包带入的厂商 SDK。优先在 ROS 适配层修复问题；只有底层编译或协议问题确实位于 SDK 时才修改 SDK。
 
+## R200 相机约束
+
+- 驱动源码在 `src/realsense_r200_ros2`（ament_cmake），依赖 librealsense-r200 SDK
+  （`~/src/r200_ubuntu24.04`，librealsense v1.12.1 的 R200 专用裁剪版，USB
+  VID:PID `8086:0a80`）。SDK 以 Release 构建安装到 `/usr/local`（含 cmake CONFIG
+  包与 udev 规则），`build/` 内的 Debug 产物仅供调试。安装步骤见 README。
+- `librealsense-r200` 不是 rosdep key，不写进任何 package.xml；PC 复用工作区前需
+  先安装同一 SDK。
+- R200 是 USB 3.0 设备，必须接树莓派 5 的 USB 3.0 口；点云由 CPU 计算，两平台
+  profile 默认 `publish_pointcloud: false`，需要时改 `camera:` 段。
+- `use_presets: true` 时 SDK 的 best_quality 预设实测为三路 60 Hz，忽略 YAML 里的
+  `*_fps` 字段；要限定帧率须 `use_presets: false` 后用 YAML 分辨率/帧率。
+- 用户需在 `video` 组（udev 规则 GROUP=video；`TAG+=uaccess` 对 SSH 会话无效）。
+- `hardware.launch.py` 的 `use_camera` 默认 `false`：无相机时 `r200_node` 构造即抛
+  异常并以 `EXIT_FAILURE` 退出（不影响 launch 其他节点）。不要给该节点加
+  `respawn=True`，否则无相机会变成崩溃循环。
+- `base_link -> r200_link` 出自 URDF（当前为占位值，装车后实测改 profile）；
+  `r200_link -> r200_*_optical_frame` 是相机 SPI 标定外参，由 `r200_node` 发布，
+  禁止写进 URDF。
+
 ## 代码风格和改动范围
 
 - Python 遵循现有 PEP 8 风格，使用明确类型和小型函数；涉及协议偏移、单位或字节顺序时写简短注释。
@@ -201,7 +236,9 @@ ros2 launch dm_imu dm_imu.launch.py port:=/dev/ttyAMA4   # 树莓派 5
 
 ## 整机架构约束
 
-- TF 固定为 `map -> odom -> base_footprint -> base_link -> {imu_link, base_laser}`。
+- TF 固定为 `map -> odom -> base_footprint -> base_link -> {imu_link, base_laser, r200_link}`。
+  `r200_link -> r200_*_optical_frame` 由 `r200_node` 从相机外参发布，是整机静态 TF
+  只出自 `roscar_description` 这一约定的唯一例外。
 - `roscar_base` 必须从 STM32 上报的机体速度独立积分位姿并发布 `/odom` 和
   `odom -> base_footprint`，禁止从 Cartographer TF 读取位姿拼装 `/odom`。
 - 使用轮式里程计时 Cartographer 配置为 `published_frame = "odom"`、

@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>send2server</name>
+  <version>0.1.0</version>
+  <description>Push map-frame vehicle status to the WebSocket relay for the Qt viewer.</description>
+  <maintainer email="maintainer@example.com">SBGDUT</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>python3-websockets</exec_depend>
+  <exec_depend>ros2launch</exec_depend>
+
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

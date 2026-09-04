@@ -35,11 +35,11 @@ ros2 launch roscar_bringup hardware.launch.py --show-args
 
 ## 架构
 
-九个包分层(详见 README.md 表格):传感驱动(`dm_imu`、`ldlidar_stl_ros2`)→ 底盘(`roscar_base`)→ 模型/TF(`roscar_description`)→ SLAM(`roscar_slam`,Cartographer)→ 导航(`roscar_navigation`,Nav2)→ 编排(`roscar_bringup`)→ 数据(`roscar_maps`)。`roscar_exploration` 是空壳预留,`use_exploration:=true` 会主动拒绝启动。
+十个包分层(详见 README.md 表格):传感驱动(`dm_imu`、`ldlidar_stl_ros2`、`realsense_r200_ros2`——后者是 ament_cmake,依赖手工安装到 /usr/local 的 librealsense-r200 SDK)→ 底盘(`roscar_base`)→ 模型/TF(`roscar_description`)→ SLAM(`roscar_slam`,Cartographer)→ 导航(`roscar_navigation`,Nav2)→ 编排(`roscar_bringup`)→ 数据(`roscar_maps`)。`roscar_exploration` 是空壳预留,`use_exploration:=true` 会主动拒绝启动。
 
 理解整机要看的关键设计(跨多文件):
 
-- **TF 固定为** `map -> odom -> base_footprint -> base_link -> {imu_link, base_laser}`。静态 TF 只由 `roscar_description` 发布;`dm_imu_rviz.launch.py` 和雷达 viewer 里的兼容 TF 仅限独立查看(`publish_tf` 默认值就是为此设计的)。
+- **TF 固定为** `map -> odom -> base_footprint -> base_link -> {imu_link, base_laser, r200_link}`。静态 TF 只由 `roscar_description` 发布;`r200_link -> r200_*_optical_frame` 是相机 SPI 标定外参,由 `r200_node` 发布,不进 URDF(这是唯一例外);`dm_imu_rviz.launch.py` 和雷达 viewer 里的兼容 TF 仅限独立查看(`publish_tf` 默认值就是为此设计的)。
 - **里程计独立**:`roscar_base` 从 STM32 上报的机体速度自积分发布 `/odom` 和 `odom -> base_footprint`;Cartographer 配置为 `use_odometry = true`、只发 `map -> odom`。禁止从 Cartographer TF 反造 `/odom`。
 - **速度安全链**:遥控与 Nav2 的速度都进 `twist_mux`,汇总为 `/cmd_vel` 给底盘;底盘节点自身保留超时清零和退出停车(`roscar_base` 的 watchdog)。
 - **平台参数系统**:`roscar_bringup` 用 `config/{pc,rpi5}.yaml` 定义设备端口和传感器 TF,`launch/hardware.launch.py` 通过 `OpaqueFunction` + `profile.py:load_profile()` 读取,`imu_port/lidar_port/base_port` launch 参数可覆盖。启动命令默认用 `profile:=rpi5`(本机)。
@@ -51,6 +51,7 @@ ros2 launch roscar_bringup hardware.launch.py --show-args
 |------|--------|--------|----------------------|------|
 | DM-IMU-L1 | `/dev/ttyAMA4` | 921600 | GPIO12/13(=uart4),第 32/33 脚 | 串口已启用,待数据实测 |
 | LD06 雷达 | `/dev/ttyAMA0` | 230400 | GPIO14/15(=uart0),第 8/10 脚 | ✅ 10 Hz /scan 正常 |
+| R200 相机 | —(USB 枚举) | — | USB 3.0 口(实测 5000M),8086:0a80,序列号 2211006613 | ✅ 2026-09-04 实测:三路 60 Hz、标定与外参正常 |
 | C30D 底盘 | `/dev/ttyACM0` | — | USB | — |
 
 - uart4 由 `/boot/firmware/config.txt` 的 `dtoverlay=uart4-pi5` 启用;uart0 由 `enable_uart=1` 启用;内核控制台未占用任何串口。

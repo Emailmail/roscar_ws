@@ -12,6 +12,7 @@ def generate_launch_description():
         'use_sim_time': 'false',
         'laser_x': '0.0', 'laser_y': '0.0', 'laser_z': '0.18', 'laser_yaw': '0.0',
         'imu_x': '0.0', 'imu_y': '0.0', 'imu_z': '0.0', 'imu_yaw': '0.0',
+        'camera_x': '0.0', 'camera_y': '0.0', 'camera_z': '0.20', 'camera_yaw': '0.0',
     }
     for name, value in defaults.items():
         arguments.append(DeclareLaunchArgument(name, default_value=value))

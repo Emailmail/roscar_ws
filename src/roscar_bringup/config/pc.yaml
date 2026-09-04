@@ -5,7 +5,16 @@ devices:
 transforms:
   laser: {x: 0.0, y: 0.0, z: 0.18, yaw: 0.0}
   imu: {x: 0.0, y: 0.0, z: 0.0, yaw: 0.0}
+  # 占位值:相机装车后实测再改
+  camera: {x: 0.0, y: 0.0, z: 0.20, yaw: 0.0}
 lidar:
   product_name: LDLiDAR_LD06
   baudrate: 230400
   scan_direction_counterclockwise: true
+camera:
+  serial: ""
+  use_presets: true
+  depth_enabled: true
+  infrared_enabled: true
+  infrared2_enabled: false
+  publish_pointcloud: false

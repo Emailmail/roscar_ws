@@ -12,7 +12,23 @@ def test_robot_frames_have_single_static_parent():
     root = ET.parse(model).getroot()
     children = [joint.find('child').attrib['link'] for joint in root.findall('joint')]
     assert len(children) == len(set(children))
-    assert set(children) == {'base_link', 'base_laser', 'imu_link'}
+    assert set(children) == {'base_link', 'base_laser', 'imu_link', 'r200_link'}
+
+
+def test_robot_description_does_not_publish_optical_frames():
+    model = WORKSPACE / 'src/roscar_description/urdf/roscar.urdf.xacro'
+    # r200_link 之下的光学系由 r200_node 从 SDK 外参发布,URDF 只到 r200_link
+    root = ET.parse(model).getroot()
+    names = [link.attrib['name'] for link in root.findall('link')]
+    names += [joint.find('child').attrib['link'] for joint in root.findall('joint')]
+    assert not any('optical_frame' in name for name in names)
+
+
+def test_system_hardware_launch_gates_camera_by_default():
+    launch = WORKSPACE / 'src/roscar_bringup/launch/hardware.launch.py'
+    text = launch.read_text(encoding='utf-8')
+    assert "DeclareLaunchArgument('use_camera', default_value='false')" in text
+    assert "IfCondition(LaunchConfiguration('use_camera'))" in text
 
 
 def test_system_hardware_launch_does_not_publish_manual_static_tf():

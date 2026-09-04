@@ -1,0 +1,24 @@
+r200_node:
+  ros__parameters:
+    topic_prefix: r200
+    serial: ""
+    use_presets: true
+    depth_width: 480
+    depth_height: 360
+    depth_fps: 30
+    color_width: 640
+    color_height: 480
+    color_fps: 30
+    depth_enabled: true
+    infrared_enabled: true
+    infrared2_enabled: true
+    infrared_width: 480
+    infrared_height: 360
+    infrared_fps: 30
+    publish_camera_info: true
+    publish_pointcloud: false
+    frame_id: r200_link
+    depth_frame_id: r200_depth_optical_frame
+    color_frame_id: r200_color_optical_frame
+    infrared_frame_id: r200_infrared_optical_frame
+    infrared2_frame_id: r200_infrared2_optical_frame

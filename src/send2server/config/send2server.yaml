@@ -1,0 +1,10 @@
+send2server:
+  ros__parameters:
+    server_uri: "ws://8.134.118.29:8772"
+    map_frame: "map"
+    robot_frame: "base_footprint"
+    odom_topic: "/odom"
+    status_period: 0.1
+    reconnect_delay: 2.0
+    battery: 0.0
+    traffic: "green"

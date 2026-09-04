@@ -8,6 +8,10 @@
   <xacro:arg name="imu_y" default="0.0"/>
   <xacro:arg name="imu_z" default="0.0"/>
   <xacro:arg name="imu_yaw" default="0.0"/>
+  <xacro:arg name="camera_x" default="0.0"/>
+  <xacro:arg name="camera_y" default="0.0"/>
+  <xacro:arg name="camera_z" default="0.20"/>
+  <xacro:arg name="camera_yaw" default="0.0"/>
 
   <link name="base_footprint"/>
   <link name="base_link">
@@ -37,5 +41,14 @@
     <origin xyz="$(arg imu_x) $(arg imu_y) $(arg imu_z)"
             rpy="0 0 $(arg imu_yaw)"/>
     <parent link="base_link"/><child link="imu_link"/>
+  </joint>
+
+  <!-- r200_link 之下的光学系(r200_*_optical_frame)由 r200_node 从 SDK 外参发布,
+       不写入 URDF。 -->
+  <link name="r200_link"/>
+  <joint name="r200_joint" type="fixed">
+    <origin xyz="$(arg camera_x) $(arg camera_y) $(arg camera_z)"
+            rpy="0 0 $(arg camera_yaw)"/>
+    <parent link="base_link"/><child link="r200_link"/>
   </joint>
 </robot>
